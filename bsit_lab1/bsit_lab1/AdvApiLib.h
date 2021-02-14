@@ -18,6 +18,7 @@ public:
 		LsaEnumerateAccountRights = (NTSTATUS(*)(LSA_HANDLE, PSID, PLSA_UNICODE_STRING*, PULONG))GetProcAddress(hLib, "LsaEnumerateAccountRights");
 		LsaAddAccountRights = (NTSTATUS(*)(LSA_HANDLE, PSID, PLSA_UNICODE_STRING, ULONG))GetProcAddress(hLib, "LsaAddAccountRights");
 		LsaRemoveAccountRights = (NTSTATUS(*)(LSA_HANDLE, PSID, BOOLEAN, PLSA_UNICODE_STRING, ULONG))GetProcAddress(hLib, "LsaRemoveAccountRights");
+		LookupAccountName = (NET_API_STATUS(*)(LPWSTR, LPWSTR, PSID, LPDWORD, LPWSTR, LPDWORD, PSID_NAME_USE))GetProcAddress(hLib, "LookupAccountNameW");
 	}
 
 	HINSTANCE hLib;
@@ -27,4 +28,5 @@ public:
 	NTSTATUS(*LsaEnumerateAccountRights)(LSA_HANDLE, PSID, PLSA_UNICODE_STRING*, PULONG);
 	NTSTATUS(*LsaAddAccountRights)(LSA_HANDLE, PSID, PLSA_UNICODE_STRING, ULONG);
 	NTSTATUS(*LsaRemoveAccountRights)(LSA_HANDLE, PSID, BOOLEAN, PLSA_UNICODE_STRING, ULONG);
+	NET_API_STATUS(*LookupAccountName)(LPWSTR, LPWSTR, PSID, LPDWORD, LPWSTR, LPDWORD, PSID_NAME_USE);
 };
