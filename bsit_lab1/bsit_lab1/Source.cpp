@@ -3,9 +3,6 @@
 #include "AdvApiLib.h"
 #include "NetApiLib.h"
 
-auto g_AdvApiLib = new AdvApiLib();
-auto g_NetApiLib = new NetApiLib();
-
 void ShowInfo();
 LSA_HANDLE GetPolicyHandle();
 PSID& FindSidByName(LPWSTR name);
@@ -24,6 +21,9 @@ int main()
 
 void ShowInfo()
 {
+	auto advApiLib = new AdvApiLib();
+	auto netApiLib = new NetApiLib();
+	
 	PSID sid = nullptr;
 	DWORD struct_level = 0;
 	DWORD prefmaxlen = 0xFFFFFFFF;
@@ -33,7 +33,7 @@ void ShowInfo()
 	LOCALGROUP_INFO_0* buffer;
 	LPBYTE* buffptr;
 
-	auto result = g_NetApiLib->NetLocalGroupEnum(nullptr, struct_level, (LPBYTE)&buffer, prefmaxlen, &entries_flag, &entries, nullptr);
+	auto result = netApiLib->NetLocalGroupEnum(nullptr, struct_level, (LPBYTE)&buffer, prefmaxlen, &entries_flag, &entries, nullptr);
 
 	for (auto i = 0; i < entries; ++i)
 	{
@@ -46,7 +46,7 @@ void ShowInfo()
 		sid = FindSidByName((buffer + i)->lgrpi0_name);
 		LPWSTR buf = nullptr;
 		
-		result = g_NetApiLib->NetLocalGroupGetMembers(
+		result = netApiLib->NetLocalGroupGetMembers(
 			nullptr, 
 			(buffer + i)->lgrpi0_name, 
 			0,
@@ -60,7 +60,7 @@ void ShowInfo()
 		for (auto j = 0; j < user_total_entries; ++j)
 		{
 			LPWSTR str = nullptr;
-			g_AdvApiLib->ConvertSidToStringSid((memberbuff + j)->lgrmi0_sid, &str);
+			advApiLib->ConvertSidToStringSid((memberbuff + j)->lgrmi0_sid, &str);
 			std::cout << "User: ";
 			std::wcout << str << std::endl;
 		}
@@ -77,7 +77,7 @@ void ShowInfo()
 	DWORD dwentriesread;
 	DWORD dwtotalentries;
 
-	result = g_NetApiLib->NetUserEnum(nullptr, dwlevel, dwfilter, (LPBYTE*)&theEntries, dwprefmaxlen, &dwentriesread, &dwtotalentries, nullptr);
+	result = netApiLib->NetUserEnum(nullptr, dwlevel, dwfilter, (LPBYTE*)&theEntries, dwprefmaxlen, &dwentriesread, &dwtotalentries, nullptr);
 	
 	std::cout << "USERS: " << std::endl;
 	
@@ -91,11 +91,13 @@ void ShowInfo()
 		}
 	}
 	
-	g_NetApiLib->NetApiBufferFree(buffer);
+	netApiLib->NetApiBufferFree(buffer);
 }
 
 PSID& FindSidByName(LPWSTR name)
 {
+	auto advApiLib = new AdvApiLib();
+	
 	auto DomainName = (LPSTR)LocalAlloc(LPTR, sizeof(TCHAR) * 1024);
 	
 	SID_NAME_USE snu;
@@ -106,13 +108,13 @@ PSID& FindSidByName(LPWSTR name)
 	DWORD cbSid = SECURITY_MAX_SID_SIZE;
 	LPWSTR buf = nullptr;
 
-	auto result = g_AdvApiLib->LookupAccountName(nullptr, name, sid, &cbSid, rd, &cchRD, &snu);
+	auto result = advApiLib->LookupAccountName(nullptr, name, sid, &cbSid, rd, &cchRD, &snu);
 	
 	rd = (LPWSTR)LocalAlloc(LPTR, cchRD * sizeof(*rd));
 	cbSid = sizeof(sidbuf);
 	
-	result = g_AdvApiLib->LookupAccountName(nullptr, name, sid, &cbSid, rd, &cchRD, &snu);
-	result = g_AdvApiLib->ConvertSidToStringSid(sid, &buf);
+	result = advApiLib->LookupAccountName(nullptr, name, sid, &cbSid, rd, &cchRD, &snu);
+	result = advApiLib->ConvertSidToStringSid(sid, &buf);
 	
 	std::wcout << buf << std::endl;
 	
@@ -123,10 +125,12 @@ PSID& FindSidByName(LPWSTR name)
 
 void FindRightsBySid(PSID sid)
 {
+	auto advApiLib = new AdvApiLib();
+	
 	PLSA_UNICODE_STRING UserRights;
 	ULONG CountofRights;
 	
-	g_AdvApiLib->LsaEnumerateAccountRights(GetPolicyHandle(), sid, &UserRights, &CountofRights);
+	advApiLib->LsaEnumerateAccountRights(GetPolicyHandle(), sid, &UserRights, &CountofRights);
 	
 	for (auto i = 0; i < CountofRights; ++i)
 	{
@@ -136,11 +140,13 @@ void FindRightsBySid(PSID sid)
 
 LSA_HANDLE GetPolicyHandle()
 {
+	auto advApiLib = new AdvApiLib();
+	
 	LSA_OBJECT_ATTRIBUTES ObjectAttributes;
 	LSA_HANDLE lsaPolicyHandle;
 
 	memset(&ObjectAttributes, 0, sizeof(ObjectAttributes));
-	auto ntsResult = g_AdvApiLib->LsaOpenPolicy(nullptr, &ObjectAttributes, POLICY_ALL_ACCESS, &lsaPolicyHandle);
+	auto ntsResult = advApiLib->LsaOpenPolicy(nullptr, &ObjectAttributes, POLICY_ALL_ACCESS, &lsaPolicyHandle);
 	
 	if (ntsResult != 0)
 	{
@@ -153,6 +159,8 @@ LSA_HANDLE GetPolicyHandle()
 
 void AddUser(std::string name, std::string pass)
 {
+	auto netApiLib = new NetApiLib();
+	
 	auto wc_name = new wchar_t[name.length() + 1];
 	mbstowcs_s(nullptr, wc_name, name.length() + 1, name.c_str(), name.length());
 	auto wc_pass = new wchar_t[pass.length() + 1];
@@ -168,7 +176,7 @@ void AddUser(std::string name, std::string pass)
 	user_info.usri1_priv = USER_PRIV_USER;
 	user_info.usri1_script_path = nullptr;
 
-	auto result = g_NetApiLib->NetUserAdd(nullptr, 1, (LPBYTE)&user_info, nullptr);
+	auto result = netApiLib->NetUserAdd(nullptr, 1, (LPBYTE)&user_info, nullptr);
 	
 	if (result != 0)
 	{
@@ -178,21 +186,25 @@ void AddUser(std::string name, std::string pass)
 
 void DelUser(std::string name)
 {
+	auto netApiLib = new NetApiLib();
+	
 	auto wc_name = new wchar_t[name.length() + 1];
 	mbstowcs_s(nullptr, wc_name, name.length() + 1, name.c_str(), name.length());
 
-	auto result = g_NetApiLib->NetUserDel(nullptr, wc_name);
+	auto result = netApiLib->NetUserDel(nullptr, wc_name);
 }
 
 void AddGroup(std::string groupName)
 {
-	wchar_t* wc_gname = new wchar_t[groupName.length() + 1];
+	auto netApiLib = new NetApiLib();
+	
+	auto wc_gname = new wchar_t[groupName.length() + 1];
 	mbstowcs_s(nullptr, wc_gname, groupName.length() + 1, groupName.c_str(), groupName.length());
 
 	LOCALGROUP_INFO_0 new_group_info;
 	new_group_info.lgrpi0_name = wc_gname;
 
-	auto result = g_NetApiLib->NetLocalGroupAdd(nullptr, 0, (LPBYTE)&new_group_info, nullptr);
+	auto result = netApiLib->NetLocalGroupAdd(nullptr, 0, (LPBYTE)&new_group_info, nullptr);
 	
 	if (result != 0)
 	{
@@ -202,8 +214,10 @@ void AddGroup(std::string groupName)
 
 void DelGroup(std::string groupName)
 {
-	wchar_t* wc_gname = new wchar_t[groupName.length() + 1];
+	auto netApiLib = new NetApiLib();
+	
+	auto wc_gname = new wchar_t[groupName.length() + 1];
 	mbstowcs_s(nullptr, wc_gname, groupName.length() + 1, groupName.c_str(), groupName.length());
 
-	auto result = g_NetApiLib->NetLocalGroupDel(nullptr, wc_gname);
+	auto result = netApiLib->NetLocalGroupDel(nullptr, wc_gname);
 }

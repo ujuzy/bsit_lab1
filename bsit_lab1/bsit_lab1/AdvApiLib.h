@@ -21,6 +21,11 @@ public:
 		LookupAccountName = (NET_API_STATUS(*)(LPWSTR, LPWSTR, PSID, LPDWORD, LPWSTR, LPDWORD, PSID_NAME_USE))GetProcAddress(hLib, "LookupAccountNameW");
 	}
 
+	~AdvApiLib()
+	{
+		FreeLibrary(hLib);
+	}
+
 	HINSTANCE hLib;
 	
 	BOOL(*ConvertSidToStringSid)(PSID, LPWSTR*);

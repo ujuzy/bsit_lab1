@@ -25,6 +25,11 @@ public:
 		NetApiBufferFree = (NET_API_STATUS(*)(LPVOID))GetProcAddress(hLib, "NetApiBufferFree");
 	}
 
+	~NetApiLib()
+	{
+		FreeLibrary(hLib);
+	}
+
 	HINSTANCE hLib;
 	
 	NET_API_STATUS(*NetUserEnum)(LPCWSTR, DWORD, DWORD, LPBYTE*, DWORD, LPDWORD, LPDWORD, PDWORD);
