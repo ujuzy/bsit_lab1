@@ -10,6 +10,10 @@ void ShowInfo();
 LSA_HANDLE GetPolicyHandle();
 PSID& FindSidByName(LPWSTR name);
 void FindRightsBySid(PSID sid);
+void AddUser(std::string name, std::string pass);
+void DelUser(std::string name);
+void AddGroup(std::string groupName);
+void DelGroup(std::string groupName);
 
 int main()
 {
@@ -36,7 +40,9 @@ void ShowInfo()
 		DWORD user_entries_read;
 		DWORD user_total_entries;
 		LOCALGROUP_MEMBERS_INFO_0* memberbuff;
-		wprintf(L"%d)%s\n", i + 1, (buffer + i)->lgrpi0_name);
+		
+		std::wcout << i + 1 << ") " << (buffer + i)->lgrpi0_name << std::endl;
+		
 		sid = FindSidByName((buffer + i)->lgrpi0_name);
 		LPWSTR buf = nullptr;
 		
@@ -55,11 +61,11 @@ void ShowInfo()
 		{
 			LPWSTR str = nullptr;
 			g_AdvApiLib->ConvertSidToStringSid((memberbuff + j)->lgrmi0_sid, &str);
-			printf("User: ");
-			wprintf(L"%s\n", str);
+			std::cout << "User: ";
+			std::wcout << str << std::endl;
 		}
 		
-		printf("\n");
+		std::cout << std::endl;
 	}
 	
 	sid = nullptr;
@@ -73,15 +79,15 @@ void ShowInfo()
 
 	result = g_NetApiLib->NetUserEnum(nullptr, dwlevel, dwfilter, (LPBYTE*)&theEntries, dwprefmaxlen, &dwentriesread, &dwtotalentries, nullptr);
 	
-	printf("USERS:\n");
+	std::cout << "USERS: " << std::endl;
 	
 	if (true)
 	{
 		for (int i = 0; i < dwentriesread; ++i)
 		{
-			wprintf(L"%i: %s\n", i + 1, theEntries[i].usri0_name);
+			std::wcout << i + 1 << ": " << theEntries[i].usri0_name << std::endl;
 			sid = FindSidByName(theEntries[i].usri0_name);
-			printf("\n");
+			std::cout << std::endl;
 		}
 	}
 	
@@ -108,7 +114,7 @@ PSID& FindSidByName(LPWSTR name)
 	result = g_AdvApiLib->LookupAccountName(nullptr, name, sid, &cbSid, rd, &cchRD, &snu);
 	result = g_AdvApiLib->ConvertSidToStringSid(sid, &buf);
 	
-	wprintf(L"%s\n", buf);
+	std::wcout << buf << std::endl;
 	
 	FindRightsBySid(sid);
 	
@@ -124,7 +130,7 @@ void FindRightsBySid(PSID sid)
 	
 	for (auto i = 0; i < CountofRights; ++i)
 	{
-		wprintf(L"Privilege: %d %s\n", i + 1, (UserRights + i)->Buffer);
+		std::wcout << "Privilege: " << i + 1 << " " << (UserRights + i)->Buffer << std::endl;
 	}
 }
 
@@ -138,10 +144,66 @@ LSA_HANDLE GetPolicyHandle()
 	
 	if (ntsResult != 0)
 	{
-		wprintf(L"Error while getting policy,  %lu.\n", LsaNtStatusToWinError(ntsResult));
-		
+		std::wcout << "Error while getting policy, " << LsaNtStatusToWinError(ntsResult) << std::endl;
 		exit(-1);
 	}
 	
 	return lsaPolicyHandle;
+}
+
+void AddUser(std::string name, std::string pass)
+{
+	auto wc_name = new wchar_t[name.length() + 1];
+	mbstowcs_s(nullptr, wc_name, name.length() + 1, name.c_str(), name.length());
+	auto wc_pass = new wchar_t[pass.length() + 1];
+	mbstowcs_s(nullptr, wc_pass, pass.length() + 1, pass.c_str(), pass.length());
+
+	USER_INFO_1 user_info;
+
+	user_info.usri1_name = wc_name;
+	user_info.usri1_password = wc_pass;
+	user_info.usri1_comment = nullptr;
+	user_info.usri1_flags = UF_SCRIPT;
+	user_info.usri1_home_dir = nullptr;
+	user_info.usri1_priv = USER_PRIV_USER;
+	user_info.usri1_script_path = nullptr;
+
+	auto result = g_NetApiLib->NetUserAdd(nullptr, 1, (LPBYTE)&user_info, nullptr);
+	
+	if (result != 0)
+	{
+		std::cout << "User cannot be added" << std::endl;
+	}
+}
+
+void DelUser(std::string name)
+{
+	auto wc_name = new wchar_t[name.length() + 1];
+	mbstowcs_s(nullptr, wc_name, name.length() + 1, name.c_str(), name.length());
+
+	auto result = g_NetApiLib->NetUserDel(nullptr, wc_name);
+}
+
+void AddGroup(std::string groupName)
+{
+	wchar_t* wc_gname = new wchar_t[groupName.length() + 1];
+	mbstowcs_s(nullptr, wc_gname, groupName.length() + 1, groupName.c_str(), groupName.length());
+
+	LOCALGROUP_INFO_0 new_group_info;
+	new_group_info.lgrpi0_name = wc_gname;
+
+	auto result = g_NetApiLib->NetLocalGroupAdd(nullptr, 0, (LPBYTE)&new_group_info, nullptr);
+	
+	if (result != 0)
+	{
+		std::cout << "Group cannot be added" << std::endl;
+	}
+}
+
+void DelGroup(std::string groupName)
+{
+	wchar_t* wc_gname = new wchar_t[groupName.length() + 1];
+	mbstowcs_s(nullptr, wc_gname, groupName.length() + 1, groupName.c_str(), groupName.length());
+
+	auto result = g_NetApiLib->NetLocalGroupDel(nullptr, wc_gname);
 }
