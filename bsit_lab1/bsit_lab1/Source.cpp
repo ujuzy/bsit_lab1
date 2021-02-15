@@ -11,11 +11,14 @@ void AddUser(std::string name, std::string pass);
 void DelUser(std::string name);
 void AddGroup(std::string groupName);
 void DelGroup(std::string groupName);
+void AddUserToGroup(std::string user, std::string group);
+void DelUserFromGroup(std::string user, std::string group);
+void AddUserGroupPrivilege(std::string name, std::string privilege);
+void DelUserGroupPrivilege(std::string name, std::string privilege);
+bool InitLsaString(PLSA_UNICODE_STRING pLsaString, LPCWSTR pwszString);
 
 int main()
 {
-	ShowInfo();
-	
 	return 0;	
 }
 
@@ -220,4 +223,112 @@ void DelGroup(std::string groupName)
 	mbstowcs_s(nullptr, wc_gname, groupName.length() + 1, groupName.c_str(), groupName.length());
 
 	auto result = netApiLib->NetLocalGroupDel(nullptr, wc_gname);
+}
+
+void AddUserToGroup(std::string user, std::string group)
+{
+	auto netApiLib = new NetApiLib();
+	
+	auto wc_uname = new wchar_t[user.length() + 1];
+	mbstowcs_s(nullptr, wc_uname, user.length() + 1, user.c_str(), user.length());
+	auto wc_gname = new wchar_t[group.length() + 1];
+	mbstowcs_s(nullptr, wc_gname, group.length() + 1, group.c_str(), group.length());
+
+	_LOCALGROUP_MEMBERS_INFO_0 buf;
+
+	buf.lgrmi0_sid = FindSidByName(wc_uname);
+	NET_API_STATUS result = netApiLib->NetLocalGroupAddMembers(nullptr, wc_gname, 0, (LPBYTE)&buf, 1);
+}
+
+void DelUserFromGroup(std::string user, std::string group)
+{
+	auto netApiLib = new NetApiLib();
+
+	auto wc_uname = new wchar_t[user.length() + 1];
+	mbstowcs_s(nullptr, wc_uname, user.length() + 1, user.c_str(), user.length());
+	auto wc_gname = new wchar_t[group.length() + 1];
+	mbstowcs_s(nullptr, wc_gname, group.length() + 1, group.c_str(), group.length());
+
+	_LOCALGROUP_MEMBERS_INFO_0 buf;
+
+	buf.lgrmi0_sid = FindSidByName(wc_uname);
+	NET_API_STATUS result = netApiLib->NetLocalGroupDelMembers(nullptr, wc_gname, 0, (LPBYTE)&buf, 1);
+}
+
+void AddUserGroupPrivilege(std::string name, std::string privilege)
+{
+	auto advApiLib = new AdvApiLib();
+	
+	auto wc_name = new wchar_t[name.length() + 1];
+	mbstowcs_s(nullptr, wc_name, name.length() + 1, name.c_str(), name.length());
+	auto wc_priv = new wchar_t[privilege.length() + 1];
+	mbstowcs_s(nullptr, wc_priv, privilege.length() + 1, privilege.c_str(), privilege.length());
+
+	LSA_UNICODE_STRING privilegeLsa;
+	PSID sid = nullptr;
+
+	if (!InitLsaString(&privilegeLsa, wc_priv))
+	{
+		std::cout << "Unknown privilege" << std::endl;
+	}
+
+	NTSTATUS result;
+	sid = FindSidByName(wc_name);
+	
+	if (sid != nullptr)
+	{
+		LPWSTR buf = nullptr;
+		ConvertSidToStringSidW(sid, &buf);
+		result = advApiLib->LsaAddAccountRights(GetPolicyHandle(), sid, &privilegeLsa, 1);
+	}
+	
+	if (result != 0)
+	{
+		std::wcout << "Error while adding group privilege: " << LsaNtStatusToWinError(result) << std::endl;
+	}
+}
+
+void DelUserGroupPrivilege(std::string name, std::string privilege)
+{
+	auto advApiLib = new AdvApiLib();
+
+	auto wc_name = new wchar_t[name.length() + 1];
+	mbstowcs_s(nullptr, wc_name, name.length() + 1, name.c_str(), name.length());
+	auto wc_priv = new wchar_t[privilege.length() + 1];
+	mbstowcs_s(nullptr, wc_priv, privilege.length() + 1, privilege.c_str(), privilege.length());
+
+	LSA_UNICODE_STRING privilegeLsa;
+
+	PSID sid = FindSidByName(wc_name);
+	InitLsaString(&privilegeLsa, wc_priv);
+	
+	if (sid != nullptr)
+	{
+		auto result = advApiLib->LsaRemoveAccountRights(GetPolicyHandle(), sid, FALSE, &privilegeLsa, 1);
+		{
+			printf("Error in removing privilege!!!!\n");
+		}
+	}
+}
+
+bool InitLsaString(PLSA_UNICODE_STRING pLsaString, LPCWSTR pwszString)
+{
+	DWORD dwLen = 0;
+
+	if (nullptr == pLsaString)
+		return FALSE;
+
+	if (nullptr != pwszString)
+	{
+		dwLen = wcslen(pwszString);
+		if (dwLen > 0x7ffe)   // String is too large
+			return FALSE;
+	}
+
+	// Store the string.
+	pLsaString->Buffer = (WCHAR*)pwszString;
+	pLsaString->Length = (USHORT)dwLen * sizeof(WCHAR);
+	pLsaString->MaximumLength = (USHORT)(dwLen + 1) * sizeof(WCHAR);
+
+	return TRUE;
 }
