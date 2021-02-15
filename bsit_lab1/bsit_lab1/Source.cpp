@@ -1,4 +1,5 @@
 #include <iostream>
+#include <conio.h>
 
 #include "AdvApiLib.h"
 #include "NetApiLib.h"
@@ -16,10 +17,13 @@ void DelUserFromGroup(std::string user, std::string group);
 void AddUserGroupPrivilege(std::string name, std::string privilege);
 void DelUserGroupPrivilege(std::string name, std::string privilege);
 bool InitLsaString(PLSA_UNICODE_STRING pLsaString, LPCWSTR pwszString);
+void Menu();
 
 int main()
 {
-	return 0;	
+	Menu();
+
+	return 0;
 }
 
 void ShowInfo()
@@ -331,4 +335,118 @@ bool InitLsaString(PLSA_UNICODE_STRING pLsaString, LPCWSTR pwszString)
 	pLsaString->MaximumLength = (USHORT)(dwLen + 1) * sizeof(WCHAR);
 
 	return TRUE;
+}
+
+void Menu()
+{
+	auto menuItem = 0;
+
+	while (menuItem != 12)
+	{
+		std::cout << "1. Show all info" << std::endl;
+		std::cout << "2. Add user privilege" << std::endl;
+		std::cout << "3. Delete user privilege" << std::endl;
+		std::cout << "4. Add group privilege" << std::endl;
+		std::cout << "5. Delete group privilege" << std::endl;
+		std::cout << "6. Add user" << std::endl;
+		std::cout << "7. Delete user" << std::endl;
+		std::cout << "8. Add group" << std::endl;
+		std::cout << "9. Delete group" << std::endl;
+		std::cout << "10. Add user to group" << std::endl;
+		std::cout << "11. Delete user from group" << std::endl;
+		std::cout << "12. Exit" << std::endl;
+		std::cout << "Choice: ";
+
+		std::cin >> menuItem;
+
+		if (menuItem == 1)
+		{
+			ShowInfo();
+		}
+		
+		if (menuItem == 2 || menuItem == 4)
+		{
+			std::string name;
+			std::string privilege;
+
+			std::cin >> name >> privilege;
+
+			AddUserGroupPrivilege(name, privilege);
+		}
+
+		if (menuItem == 3 || menuItem == 5)
+		{
+			std::string name;
+			std::string privilege;
+
+			std::cin >> name >> privilege;
+
+			DelUserGroupPrivilege(name, privilege);
+		}
+
+		if (menuItem == 6)
+		{
+			std::string name;
+			std::string password;
+
+			std::cin >> name >> password;
+
+			AddUser(name, password);
+		}
+
+		if (menuItem == 7)
+		{
+			std::string name;
+
+			std::cin >> name;
+
+			DelUser(name);
+		}
+
+		if (menuItem == 8)
+		{
+			std::string name;
+
+			std::cin >> name;
+
+			AddGroup(name);
+		}
+
+		if (menuItem == 9)
+		{
+			std::string name;
+
+			std::cin >> name;
+
+			DelGroup(name);
+		}
+
+		if (menuItem == 10)
+		{
+			std::string user;
+			std::string group;
+
+			std::cin >> user >> group;
+
+			AddUserToGroup(user, group);
+		}
+
+		if (menuItem == 11)
+		{
+			std::string user;
+			std::string group;
+
+			std::cin >> user >> group;
+
+			DelUserFromGroup(user, group);
+		}
+
+		if (menuItem == 12)
+		{
+			return;
+		}
+
+		_getch();
+		system("cls");
+	}
 }
